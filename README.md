@@ -13,6 +13,7 @@ Data processing:
 
 Training and generation:
 
+- [`notebooks/matsci_20k_single_prediction_demo.ipynb`](https://github.com/darpa-scify/NSFSciFy/blob/main/notebooks/matsci_20k_single_prediction_demo.ipynb): minimal Hugging Face demo that loads a released matsci+20K adapter, predicts on one dataset entry, and evaluates that prediction.
 - [`src/data_utils.py`](https://github.com/darpa-scify/NSFSciFy/blob/main/src/data_utils.py): loads local JSONL data and formats task prompts.
 - [`scripts/train.py`](https://github.com/darpa-scify/NSFSciFy/blob/main/scripts/train.py): main Unsloth/TRL SFT LoRA training entry point.
 - [`scripts/gen.py`](https://github.com/darpa-scify/NSFSciFy/blob/main/scripts/gen.py): generation-only entry point.
@@ -40,7 +41,7 @@ Released datasets:
 
 Both datasets provide `train`, `validation`, and `test` splits. They include the generated `non_technical_abstract`, `verifiable_claims`, and `investigation_proposals` fields used by the training and evaluation scripts.
 
-Runnable Hugging Face examples are also available in [`notebooks/hf_usage_examples.ipynb`](https://github.com/darpa-scify/NSFSciFy/blob/main/notebooks/hf_usage_examples.ipynb).
+Runnable Hugging Face examples are also available in [`notebooks/hf_usage_examples.ipynb`](https://github.com/darpa-scify/NSFSciFy/blob/main/notebooks/hf_usage_examples.ipynb). For the shortest end-to-end model demo, use [`notebooks/matsci_20k_single_prediction_demo.ipynb`](https://github.com/darpa-scify/NSFSciFy/blob/main/notebooks/matsci_20k_single_prediction_demo.ipynb).
 
 Load the materials-science data:
 
@@ -190,7 +191,7 @@ Metrics:
 - `tech2nontech` uses BERTScore, ROUGE, and BLEU in [`src/eval_utils.py`](https://github.com/darpa-scify/NSFSciFy/blob/main/src/eval_utils.py).
 - Claims and investigation-proposal tasks use LLM-judge pairwise comparison in [`src/claims_utils.py`](https://github.com/darpa-scify/NSFSciFy/blob/main/src/claims_utils.py) to compute precision, recall, and F-score.
 
-For LLM-judge metrics, configure an OpenAI API key before evaluation. The copied source currently imports a local `scify_api_keys.py`; for portable use, replace that with an `OPENAI_API_KEY` environment variable.
+For LLM-judge metrics, configure `OPENAI_API_KEY` in the environment or in a repo-root `.env` file.
 
 Use matching models, datasets, tasks, and prompt modes:
 
@@ -201,4 +202,15 @@ Use matching models, datasets, tasks, and prompt modes:
 
 ## Portability Notes
 
-Some scripts still contain machine-local defaults such as `/shared_data0/...`; pass `--root_dir .` or edit those defaults before running elsewhere. The original `notebooks/upload2hf.ipynb` was not copied because it contains a hard-coded Hugging Face token.
+Python entry points resolve data, model checkpoints, caches, and output directories relative to the repository root by default. To override local settings, copy `.env.example` to `.env`; the scripts load it when present. Relative paths in `.env`, such as `HF_HOME=.cache/huggingface`, are resolved from the repository root.
+
+Common `.env` values:
+
+```bash
+NSFSCIFY_ROOT_DIR=.
+HF_HOME=.cache/huggingface
+WANDB_PROJECT=nsf
+OPENAI_API_KEY=
+```
+
+The original `notebooks/upload2hf.ipynb` was not copied because it contains a hard-coded Hugging Face token.

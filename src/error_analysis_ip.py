@@ -5,7 +5,7 @@ error_analysis_ip.py
 Utilities for error analysis of INVESTIGATION_PROPOSALS.
 
 Updates:
-  * Classifier categories are now LOADED from a JSON file (default: /mnt/data/ip_categories.json),
+  * Classifier categories are now LOADED from a JSON file under the repository,
     rather than hard-coded. The OpenAI JSON schema and the system prompt are constructed dynamically
     from that file.
 

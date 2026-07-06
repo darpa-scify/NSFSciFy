@@ -1,5 +1,6 @@
 
 from datasets import Dataset, DatasetDict, concatenate_datasets
+import inspect
 import json
 import os
 from datasets import load_dataset
@@ -1004,6 +1005,12 @@ format_prompts_func_dict = {
     'technontech2claimsip_instruct_user_assistant': formatting_prompts_func_technontech2claimsip_instruct_user_assistant,
 }
 
+def apply_formatting_prompt(formatting_prompts_func, example, tokenizer, eval_mode=False, force_output=False):
+    kwargs = {"tokenizer": tokenizer, "eval_mode": eval_mode}
+    if force_output and "force_output" in inspect.signature(formatting_prompts_func).parameters:
+        kwargs["force_output"] = force_output
+    return formatting_prompts_func(example, **kwargs)
+
 def get_nsf_data_proc(ROOT_DIR, tokenizer, mode='tech2nontech', formatting_prompts_func=None, eval_mode=False):
     train_dataset, val_dataset, test_dataset = get_nsf_data_raw(ROOT_DIR)
     
@@ -1025,12 +1032,12 @@ def get_nsf_data_all_proc(ROOT_DIR, tokenizer, mode='tech2nontech', formatting_p
     if formatting_prompts_func is None:
         formatting_prompts_func = format_prompts_func_dict[mode]
 
-    func = lambda x: formatting_prompts_func(x, tokenizer=tokenizer, eval_mode=eval_mode, force_output=force_output)
+    func = lambda x: apply_formatting_prompt(formatting_prompts_func, x, tokenizer=tokenizer, eval_mode=eval_mode, force_output=force_output)
     
     all_dataset = all_dataset.map(func, batched = False,)
     return all_dataset
 
-def get_nsf_data_20k_proc(ROOT_DIR, tokenizer, mode='tech2nontech', formatting_prompts_func=None, eval_mode=False):
+def get_nsf_data_20k_proc(ROOT_DIR, tokenizer, mode='tech2nontech', formatting_prompts_func=None, eval_mode=False, force_output=False):
     train_dataset, val_dataset, test_dataset = get_nsf_data_20k_raw(ROOT_DIR)
     
     if formatting_prompts_func is None:
@@ -1042,7 +1049,7 @@ def get_nsf_data_20k_proc(ROOT_DIR, tokenizer, mode='tech2nontech', formatting_p
         val_dataset = val_dataset.filter(lambda x: x['technical_abstract'] not in ['', None] and x['non_technical_abstract'] not in ['', None])
         test_dataset = test_dataset.filter(lambda x: x['technical_abstract'] not in ['', None] and x['non_technical_abstract'] not in ['', None])
 
-    func = lambda x: formatting_prompts_func(x, tokenizer=tokenizer, eval_mode=eval_mode)
+    func = lambda x: apply_formatting_prompt(formatting_prompts_func, x, tokenizer=tokenizer, eval_mode=eval_mode, force_output=force_output)
 
     train_dataset = train_dataset.map(func, batched = False,)
     val_dataset = val_dataset.map(func, batched = False,)

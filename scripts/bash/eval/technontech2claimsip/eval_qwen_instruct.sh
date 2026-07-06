@@ -6,7 +6,13 @@ models=(
 )
 
 # Root directory for dataset and model files
-ROOT_DIR="/shared_data0/weiqiuy/nsf-awards"
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [ -f "${REPO_ROOT}/.env" ]; then
+  set -a
+  source "${REPO_ROOT}/.env"
+  set +a
+fi
+ROOT_DIR="${NSFSCIFY_ROOT_DIR:-${REPO_ROOT}}"
 # Prompt mode (adjust as needed)
 PROMPT_MODE="technontech2claimsip_instruct"
 # Task name
@@ -19,7 +25,7 @@ for model in "${models[@]}"; do
     echo "----------------------------------------"
     echo "Evaluating model: ${model}"
     echo "----------------------------------------"
-    python scripts/eval.py \
+    python "${REPO_ROOT}/scripts/eval.py" \
         --model "${model}" \
         --root_dir "${ROOT_DIR}" \
         --prompt_mode "${PROMPT_MODE}" \

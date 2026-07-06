@@ -1,4 +1,5 @@
-python scripts/train.py --model_name NousResearch/Hermes-2-Theta-Llama-3-8B --lr 1e-5 \
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+python "${REPO_ROOT}/scripts/train.py" --model_name NousResearch/Hermes-2-Theta-Llama-3-8B --lr 1e-5 \
 --max_seq_length 2048 --max_steps -1 --num_epochs 3 --prompt_mode technontech2ip_instruct \
 --r 128 \
 --warmup_steps 100 \

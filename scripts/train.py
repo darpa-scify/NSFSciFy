@@ -1,22 +1,25 @@
-from unsloth import FastLanguageModel
-import torch
-import sys
-sys.path.append('src')
-from data_utils import get_nsf_data_matsci_and_20k_proc, get_nsf_data_20k_proc, get_nsf_data_proc
-from trl import SFTTrainer
-from transformers import TrainingArguments
-from unsloth import is_bfloat16_supported
 import os
 import argparse
 
-os.environ["WANDB_PROJECT"] = 'nsf'
-os.environ["HF_HOME"] = '/shared_data0/hf_cache'
+import torch
+
+from path_utils import (
+    add_src_to_path,
+    configure_hf_home,
+    get_default_root,
+    get_default_wandb_project,
+    load_repo_env,
+    resolve_root,
+    resolve_under_root,
+)
+
+load_repo_env()
 
 def main():
 
     def get_args():
         parser = argparse.ArgumentParser()
-        parser.add_argument('--ROOT_DIR', type=str, default='.')
+        parser.add_argument('--ROOT_DIR', type=str, default=get_default_root())
         parser.add_argument('--max_seq_length', type=int, default=2048)
         parser.add_argument('--dataset_name', type=str, default='matsci', choices=['matsci_and_20k', '20k', 'matsci'])
         parser.add_argument('--model_name', type=str, default='unsloth/Qwen2.5-7B')
@@ -41,11 +44,18 @@ def main():
         return parser.parse_args()
 
     args = get_args()
+    root_dir = resolve_root(args.ROOT_DIR)
+    configure_hf_home(root_dir)
+    os.environ.setdefault("WANDB_PROJECT", get_default_wandb_project())
+    add_src_to_path()
+
+    from unsloth import FastLanguageModel, is_bfloat16_supported
+    from trl import SFTTrainer
+    from transformers import TrainingArguments
+    from data_utils import get_nsf_data_matsci_and_20k_proc, get_nsf_data_20k_proc, get_nsf_data_proc
 
     print("All arguments:", vars(args))
-
-    ROOT_DIR = '.'
-
+    print(f"Resolved root directory: {root_dir}")
 
     max_seq_length = args.max_seq_length # Choose any! We auto support RoPE Scaling internally!
     dtype = None # None for auto detection. Float16 for Tesla T4, V100, Bfloat16 for Ampere+
@@ -108,11 +118,11 @@ def main():
     )
 
     if dataset_name == 'matsci_and_20k':
-        train_dataset, val_dataset, test_dataset = get_nsf_data_matsci_and_20k_proc(ROOT_DIR, tokenizer, mode=prompt_mode)
+        train_dataset, val_dataset, test_dataset = get_nsf_data_matsci_and_20k_proc(root_dir, tokenizer, mode=prompt_mode)
     elif dataset_name == '20k':
-        train_dataset, val_dataset, test_dataset = get_nsf_data_20k_proc(ROOT_DIR, tokenizer, mode=prompt_mode)
+        train_dataset, val_dataset, test_dataset = get_nsf_data_20k_proc(root_dir, tokenizer, mode=prompt_mode)
     elif dataset_name == 'matsci':
-        train_dataset, val_dataset, test_dataset = get_nsf_data_proc(ROOT_DIR, tokenizer, mode=prompt_mode)
+        train_dataset, val_dataset, test_dataset = get_nsf_data_proc(root_dir, tokenizer, mode=prompt_mode)
 
     trainer = SFTTrainer(
         model = model,
@@ -139,7 +149,7 @@ def main():
             weight_decay = 0.01,
             lr_scheduler_type = scheduler_type,
             seed = 3407,
-            output_dir = os.path.join('models', save_name),
+            output_dir = str(resolve_under_root(root_dir, os.path.join('models', save_name))),
             report_to = "wandb", # Use this for WandB etc
             run_name=save_name,
         ),
@@ -166,8 +176,9 @@ def main():
     print(f"Peak reserved memory % of max memory = {used_percentage} %.")
     print(f"Peak reserved memory for training % of max memory = {lora_percentage} %.")
 
-    model.save_pretrained(os.path.join(ROOT_DIR, f"models/lora_model_{save_name}")) # Local saving
-    tokenizer.save_pretrained(os.path.join(ROOT_DIR, f"models/lora_model_{save_name}"))
+    local_save_dir = resolve_under_root(root_dir, f"models/lora_model_{save_name}")
+    model.save_pretrained(local_save_dir) # Local saving
+    tokenizer.save_pretrained(local_save_dir)
 
 
 if __name__ == '__main__':

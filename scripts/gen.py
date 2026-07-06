@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 import argparse
 import os
-import sys
-import torch
 import json
 
-# Add the local "src" directory so our utility modules can be found.
-sys.path.append('src')
-sys.path.append('/shared_data0/weiqiuy/api_keys')
+from path_utils import (
+    add_src_to_path,
+    configure_hf_home,
+    get_default_root,
+    load_repo_env,
+    resolve_model_path,
+    resolve_root,
+    resolve_under_root,
+)
 
-from data_utils import get_nsf_data_proc, get_nsf_data_all_proc, get_nsf_data_matsci_and_20k_proc, get_nsf_data_20k_proc
-from model_utils import get_model
-from eval_utils import evaluate_model, evaluate_model_claims, evaluate_model_ips, evaluate_model_claimsips, generate_predictions_batch
-
-os.environ["HF_HOME"] = '/shared_data0/hf_cache'
+load_repo_env()
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -22,7 +22,7 @@ def parse_args():
     parser.add_argument(
         "--root_dir",
         type=str,
-        default="/shared_data0/weiqiuy/nsf-awards",
+        default=get_default_root(),
         help="Root directory for dataset and model files."
     )
     parser.add_argument(
@@ -82,18 +82,28 @@ def parse_args():
 
 def main():
     args = parse_args()
+    root_dir = resolve_root(args.root_dir)
+    configure_hf_home(root_dir)
+    add_src_to_path()
+
+    from data_utils import get_nsf_data_proc, get_nsf_data_all_proc, get_nsf_data_matsci_and_20k_proc, get_nsf_data_20k_proc
+    from model_utils import get_model
+    from eval_utils import generate_predictions_batch
 
     print("All arguments:", vars(args))
+    print(f"Resolved root directory: {root_dir}")
 
     # Append a debug suffix to the save directory if debug mode is enabled.
-    save_dir = os.path.join(args.root_dir, args.save_dir, args.task + ("_debug" if args.debug else "")) + \
-        (f"_{args.dataset}" if args.dataset == "all" else "")
+    save_dir = resolve_under_root(root_dir, args.save_dir) / (
+        args.task + ("_debug" if args.debug else "") + (f"_{args.dataset}" if args.dataset == "all" else "")
+    )
     print(f"Saving results to: {save_dir}")
     # save_dir = args.save_dir + ("_debug" if args.debug else "")
     os.makedirs(save_dir, exist_ok=True)
 
-    print(f"Loading model from: {args.model}")
-    model, tokenizer = get_model(args.model, mode="eval")
+    model_name = resolve_model_path(args.model, root_dir)
+    print(f"Loading model from: {model_name}")
+    model, tokenizer = get_model(model_name, mode="eval")
     print("Model loaded successfully.")
 
     print("Processing dataset...")
@@ -102,7 +112,7 @@ def main():
     # or the third (if three are returned).
     force_output = True if args.dataset == "all" else False
     if args.dataset in ["mat_sci", "matsci"]:
-        datasets = get_nsf_data_proc(args.root_dir, tokenizer, mode=args.prompt_mode, eval_mode=True)
+        datasets = get_nsf_data_proc(root_dir, tokenizer, mode=args.prompt_mode, eval_mode=True)
         if len(datasets) == 2:
             _, test_dataset = datasets
         elif len(datasets) >= 3:
@@ -111,7 +121,7 @@ def main():
             raise ValueError("Unexpected dataset format returned from get_nsf_data_proc.")
         print(f"Loaded {len(test_dataset)} examples from the materials science dataset.")
     elif args.dataset == "matsci_and_20k":
-        datasets = get_nsf_data_matsci_and_20k_proc(args.root_dir, tokenizer, mode=args.prompt_mode, eval_mode=True)
+        datasets = get_nsf_data_matsci_and_20k_proc(root_dir, tokenizer, mode=args.prompt_mode, eval_mode=True)
         if len(datasets) == 2:
             _, test_dataset = datasets
         elif len(datasets) >= 3:
@@ -120,10 +130,11 @@ def main():
             raise ValueError("Unexpected dataset format returned from get_nsf_data_matsci_and_20k_proc.")
         print(f"Loaded {len(test_dataset)} examples from the full dataset.")
     elif args.dataset == "20k":
-        test_dataset = get_nsf_data_20k_proc(args.root_dir, tokenizer, mode=args.prompt_mode, eval_mode=True, force_output=force_output)
+        datasets = get_nsf_data_20k_proc(root_dir, tokenizer, mode=args.prompt_mode, eval_mode=True, force_output=force_output)
+        test_dataset = datasets[2] if len(datasets) >= 3 else datasets[-1]
         print(f"Loaded {len(test_dataset)} examples from the 20k dataset.")
     elif args.dataset == "all":
-        test_dataset = get_nsf_data_all_proc(args.root_dir, tokenizer, mode=args.prompt_mode, eval_mode=True, force_output=force_output)
+        test_dataset = get_nsf_data_all_proc(root_dir, tokenizer, mode=args.prompt_mode, eval_mode=True, force_output=force_output)
         print(f"Loaded {len(test_dataset)} examples from the full dataset.")
     print("Dataset processed successfully.")
 

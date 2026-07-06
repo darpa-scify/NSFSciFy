@@ -1,4 +1,4 @@
-"""
+r"""
 
 \text{Precision} = \frac{1}{|S|} \sum_{c \in S} \max_{g \in G} \text{is\_equivalent}(c, g)
 
@@ -17,14 +17,14 @@ import math
 import random
 import time
 
-from scify_api_keys import OPENAI_API_KEY
-
 load_dotenv()
 
-# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-client = OpenAI(api_key=OPENAI_API_KEY)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 def llm_score(c1, c2, system_prompt=None) -> Tuple[str, float]:
+    if client is None:
+        raise ValueError("OPENAI_API_KEY environment variable is not set")
     if system_prompt is None:
         system_prompt = "Check if two scientific claims c1 and c2 are equivalent. Answer only as a YES or NO."
     
